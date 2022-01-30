@@ -1,0 +1,7 @@
+name = "NashEquilibrium"
+uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
+authors = ["Forrest Laine <forrest.laine@vanderbilt.edu>"]
+version = "0.1.0"
+
+[deps]
+PATHSolver = "f5f7c340-0bb3-5c69-969a-41884d311d1b"
