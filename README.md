@@ -52,7 +52,10 @@ Residual. . . . . . . . 1.371658e-08
  [0.4895995548672493, 0.3763290202188116, 0.13407142491393903]
 ```
 
- 
+```julia
+julia> @btime compute_equilibrium(cost_tensors);
+  24.553 ms (210 allocations: 15.42 KiB)
+```
  
  
 
