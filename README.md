@@ -12,6 +12,8 @@ Supply a vector of cost tensors (one for each player) as input to the function `
 
 julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N];
 julia> compute_equilibrium(cost_tensors; silent=false)
+```
+```
 Path 5.0.03 (Fri Jun 26 09:58:07 2020)
 Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
 
