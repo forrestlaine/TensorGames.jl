@@ -1,4 +1,4 @@
-# N-Player Nash Equilibrium
+# N-Player Nash Equilibrium Computation
 A function for computing mixed-strategy Nash equilibrium points of a multi-player, finite action, general-sum game. Uses the PATH solver to compute, via PATHSolver.jl.
 
 ## Example:
