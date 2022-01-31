@@ -56,11 +56,16 @@ function (T::Wrapper)(n::Cint, x::Vector{Cdouble}, f::Vector{Cdouble})
     for (n, tensor) ∈ enumerate(T.tensors)
         f[ind+1:ind+T.m[n]] .= 0.0
         grad!(f, tensor, x, n, T.tensor_indices, T.primal_inds)
-        f[ind+1:ind+T.m[n]] .-= x[T.dual_inds[n]]
+        for j ∈ ind+1:ind+T.m[n]
+            f[j] -= x[T.dual_inds[n]]
+        end
         ind += T.m[n]
     end
     for n ∈ 1:T.N
-        f[ind+n] = sum(x[T.primal_inds[n][1]:T.primal_inds[n][2]]) - 1.0
+        f[ind+n] = -1.0
+        for i ∈ T.primal_inds[n][1]:T.primal_inds[n][2]
+            f[ind+n] += x[i]
+        end
     end
     Cint(0)
 end
@@ -152,7 +157,6 @@ function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};  silent=tr
         z[start_ind:end_ind] .= 1.0 / m[n]
     end
 
-    PATHSolver.c_api_License_SetString("2830898829&Courtesy&&&USR&45321&5_1_2021&1000&PATH&GEN&31_12_2025&0_0_0&6000&0_0")
     status, vars, info = PATHSolver.solve_mcp(
         wrapper,
         wrapper,
