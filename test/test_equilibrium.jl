@@ -25,25 +25,26 @@ end
 @testset "equilibrium conditions" begin
     sol_tol = 1e-9
     ϵ = 1e-3
-    N = 3 
-    d = 3*ones(Int,N)
-    cost_tensors = [randn(d...) for n ∈ 1:N]
-    sol = compute_equilibrium(cost_tensors; convergence_tolerance=sol_tol)
-    xvec = vcat(sol.x...)
-    x = sol.x
+    for N ∈ [2,3,4]
+        d = 3*ones(Int,N)
+        cost_tensors = [randn(d...) for n ∈ 1:N]
+        sol = compute_equilibrium(cost_tensors; convergence_tolerance=sol_tol)
+        xvec = vcat(sol.x...)
+        x = sol.x
 
 
-    for n ∈ 1:N
-        @test sum(sol.x[n]) ≈ 1.0
-        @test all(sol.x[n] .≥ 0.0)
-        true_cost = expected_cost(cost_tensors[n], xvec, sol.tensor_indices, sol.primal_inds)
-        for j ∈ 1:100
-            p = valid_perturbation(sol.x[n])
-            x2 = deepcopy(sol.x)
-            x2[n] += 1e-4*p
-            xvec2 = vcat(x2...)
-            other_cost = expected_cost(cost_tensors[n], xvec2, sol.tensor_indices, sol.primal_inds)
-            @test other_cost ≥ true_cost - ϵ
+        for n ∈ 1:N
+            @test sum(sol.x[n]) ≈ 1.0
+            @test all(sol.x[n] .≥ 0.0)
+            true_cost = expected_cost(cost_tensors[n], xvec, sol.tensor_indices, sol.primal_inds)
+            for j ∈ 1:100
+                p = valid_perturbation(sol.x[n])
+                x2 = deepcopy(sol.x)
+                x2[n] += 1e-4*p
+                xvec2 = vcat(x2...)
+                other_cost = expected_cost(cost_tensors[n], xvec2, sol.tensor_indices, sol.primal_inds)
+                @test other_cost ≥ true_cost - ϵ
+            end
         end
     end
 end

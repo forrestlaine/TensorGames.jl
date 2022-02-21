@@ -122,7 +122,8 @@ function (T::Wrapper)(n::Cint,
 end
 
 
-function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};
+function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}},
+                             initialization=nothing;
                              silent = true,
                              convergence_tolerance = 1e-6) where L
     N = Cint(length(cost_tensors))
@@ -150,10 +151,14 @@ function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};
     lb = [zeros(Cdouble, num_primals); -1e20 * ones(Cdouble, N)]
     ub = 1e20 * ones(Cdouble, num_primals + N)
     z = zeros(Cdouble, num_primals + N)
-    for n ∈ 1:N
-        start_ind = primal_inds[n,1]
-        end_ind = primal_inds[n,2]
-        z[start_ind:end_ind] .= 1.0 / m[n]
+    if isnothing(initialization)
+        for n ∈ 1:N
+            start_ind = primal_inds[n,1]
+            end_ind = primal_inds[n,2]
+            z[start_ind:end_ind] .= 1.0 / m[n]
+        end
+    else
+        z .= initialization
     end
 
     n = Cint(sum(m)+N)
