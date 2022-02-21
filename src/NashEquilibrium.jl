@@ -5,6 +5,6 @@ using SparseArrays
 
 include("nash.jl")
 
-export compute_equilibrium, compute_derivatives!
+export compute_equilibrium, compute_derivatives!, expected_cost
 
 end # module

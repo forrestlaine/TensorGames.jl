@@ -1,11 +1,11 @@
-function (x::Vector{Float64})(ind, primal_inds, n...)
+function prob_prod(x, ind, primal_inds, n...)
     N = size(primal_inds,1)
     length(n) == N && return 1.0
     prod(x[primal_inds[i,1]+ind[i]-1] for i ∈ 1:N if i ∉ n)
 end
 
-function (T::Array{Float64,N})(x, indices, primal_inds) where N
-    val = sum(T[ind]*x(ind) for ind ∈ indices)
+function expected_cost(T, x, indices, primal_inds)
+    val = sum(T[ind]*prob_prod(x,ind,primal_inds) for ind ∈ indices)
 end
 
 function grad!(f, T, x, n, indices, primal_inds)
@@ -13,19 +13,12 @@ function grad!(f, T, x, n, indices, primal_inds)
     for ind ∈ indices
         for i ∈ 1:primal_inds[n,2]+1-primal_inds[n,1]
             if ind[n] == i
-                f[primal_inds[n,1]+i-1] += T[ind]*x(ind,primal_inds,n)
+                f[primal_inds[n,1]+i-1] += T[ind]*prob_prod(x,ind,primal_inds,n)
             end
         end
     end
     Cint(0)
 end
-
-#function jac(T, x, n1, n2, indices, primal_inds)
-#    l1 = primal_inds[n1,2]-primal_inds[n1,1]+1
-#    l2 = primal_inds[n2,2]-primal_inds[n2,1]+1
-#    (n1 == n2) && return zeros(l1,l2)
-#    J = [sum(T[ind]*x(ind,primal_inds,n1,n2) for ind in indices if ind[n1]==i && ind[n2] ==j) for i ∈ 1:l1, j ∈ 1:l2]
-#end
 
 function jac(J,loc,T, x, n1, n2, i, j, indices, primal_inds)
     l1 = primal_inds[n1,2]-primal_inds[n1,1]+1
@@ -33,7 +26,7 @@ function jac(J,loc,T, x, n1, n2, i, j, indices, primal_inds)
     (n1 == n2) && return zeros(l1,l2)
     for ind ∈ indices
         if ind[n1] == i && ind[n2] == j
-            J[loc] += T[ind]*x(ind,primal_inds,n1,n2) 
+            J[loc] += T[ind]*prob_prod(x,ind,primal_inds,n1,n2) 
         end
     end
     Cint(0)
@@ -129,8 +122,9 @@ function (T::Wrapper)(n::Cint,
 end
 
 
-function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};  
-                             silent = true) where L
+function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};
+                             silent = true,
+                             convergence_tolerance = 1e-6) where L
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
@@ -179,6 +173,7 @@ function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};
         ub,
         z;
         nnz,
+        convergence_tolerance,
         silent)
 
     x = [vars[primal_inds[n,1]:primal_inds[n,2]] for n ∈ 1:N]
@@ -205,7 +200,15 @@ function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
     lb = [zeros(num_primals); -Inf*ones(N)]
     unbound_indices = ( vars .> (lb .+ bound_tolerance) )
     unbound_primals = unbound_indices[1:end-N]
-
+    nup = sum(unbound_primals)
+    ubmap = zeros(Int,num_primals)
+    idx = 1
+    for i ∈ 1:num_primals
+        if unbound_primals[i]
+            ubmap[i] = idx
+            idx += 1
+        end
+    end
     col = zeros(Cint, n)
     len = zeros(Cint, n)
     row = zeros(Cint, sol.nnz)
@@ -215,16 +218,13 @@ function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
     colptr = zeros(Cint, n+1)
     colptr[1:n] .= col
     colptr[n+1] = col[n] + len[n]
-
     nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n,n,colptr,row,data))[unbound_indices, unbound_indices]))
 
     for ind ∈ sol.tensor_indices
-        if primals(ind, sol.primal_inds) > bound_tolerance
+        if prob_prod(primals, ind, sol.primal_inds) > (bound_tolerance)^N
             for n ∈ 1:N
-                D[n,ind,unbound_primals] .= nJi[starts[n]+ind[n]] * primals(ind,sol.primal_inds,n)
+                D[n,ind,unbound_primals] .= nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol.primal_inds,n)
             end
-        else
-            println("huh")
         end
     end
     return 
