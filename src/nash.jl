@@ -122,11 +122,11 @@ function (T::Wrapper)(n::Cint,
 end
 
 
-function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}},
+function compute_equilibrium(cost_tensors,
                              initialization=nothing;
                              ϵ = 0.0, # not used atm
                              silent = true,
-                             convergence_tolerance = 1e-6) where L
+                             convergence_tolerance = 1e-6)
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
