@@ -1,7 +1,7 @@
-using PATHSolver
-
 function (x::Vector{Float64})(ind, primal_inds, n...)
-    prod(x[primal_inds[i][1]+ind[i]-1] for i ∈ 1:length(primal_inds) if i ∉ n)
+    N = size(primal_inds,1)
+    length(n) == N && return 1.0
+    prod(x[primal_inds[i,1]+ind[i]-1] for i ∈ 1:N if i ∉ n)
 end
 
 function (T::Array{Float64,N})(x, indices, primal_inds) where N
@@ -9,28 +9,27 @@ function (T::Array{Float64,N})(x, indices, primal_inds) where N
 end
 
 function grad!(f, T, x, n, indices, primal_inds)
-    f[primal_inds[n][1]:primal_inds[n][2]] .= 0.0
+    f[primal_inds[n,1]:primal_inds[n,2]] .= 0.0
     for ind ∈ indices
-        for i ∈ 1:primal_inds[n][2]+1-primal_inds[n][1]
+        for i ∈ 1:primal_inds[n,2]+1-primal_inds[n,1]
             if ind[n] == i
-                f[primal_inds[n][1]+i-1] += T[ind]*x(ind,primal_inds,n)
+                f[primal_inds[n,1]+i-1] += T[ind]*x(ind,primal_inds,n)
             end
         end
     end
     Cint(0)
 end
 
-function jac(T, x, n1, n2, indices, primal_inds)
-    l1 = primal_inds[n1][2]-primal_inds[n1][1]+1
-    l2 = primal_inds[n2][2]-primal_inds[n2][1]+1
-    (n1 == n2) && return zeros(l1,l2)
-    J = [sum(T[ind]*x(ind,primal_inds,n1,n2) for ind in indices if ind[n1]==i && ind[n2] ==j) for i ∈ 1:l1, j ∈ 1:l2]
-    Cint(0)
-end
+#function jac(T, x, n1, n2, indices, primal_inds)
+#    l1 = primal_inds[n1,2]-primal_inds[n1,1]+1
+#    l2 = primal_inds[n2,2]-primal_inds[n2,1]+1
+#    (n1 == n2) && return zeros(l1,l2)
+#    J = [sum(T[ind]*x(ind,primal_inds,n1,n2) for ind in indices if ind[n1]==i && ind[n2] ==j) for i ∈ 1:l1, j ∈ 1:l2]
+#end
 
 function jac(J,loc,T, x, n1, n2, i, j, indices, primal_inds)
-    l1 = primal_inds[n1][2]-primal_inds[n1][1]+1
-    l2 = primal_inds[n2][2]-primal_inds[n2][1]+1
+    l1 = primal_inds[n1,2]-primal_inds[n1,1]+1
+    l2 = primal_inds[n2,2]-primal_inds[n2,1]+1
     (n1 == n2) && return zeros(l1,l2)
     for ind ∈ indices
         if ind[n1] == i && ind[n2] == j
@@ -39,12 +38,11 @@ function jac(J,loc,T, x, n1, n2, i, j, indices, primal_inds)
     end
     Cint(0)
 end
-        
 
 struct Wrapper{L} <: Function
     tensors::Vector{Array{Float64,L}}
     tensor_indices::CartesianIndices{L, NTuple{L, Base.OneTo{Int64}}}
-    primal_inds::Vector{Vector{Cint}}
+    primal_inds::Matrix{Cint}
     dual_inds::Vector{Cint}
     N::Cint
     m::NTuple{L, Cint}
@@ -63,7 +61,7 @@ function (T::Wrapper)(n::Cint, x::Vector{Cdouble}, f::Vector{Cdouble})
     end
     for n ∈ 1:T.N
         f[ind+n] = -1.0
-        for i ∈ T.primal_inds[n][1]:T.primal_inds[n][2]
+        for i ∈ T.primal_inds[n,1]:T.primal_inds[n,2]
             f[ind+n] += x[i]
         end
     end
@@ -111,7 +109,7 @@ function (T::Wrapper)(n::Cint,
                     continue
                 end
                 for p in 1:T.m[n_row]
-                    row[ind+1] = Cint(T.primal_inds[n_row][1]+p-1)
+                    row[ind+1] = Cint(T.primal_inds[n_row,1]+p-1)
                     data[ind+1] = 0.0
                     jac(data, ind+1, T.tensors[n_row], x, n_row, n_col, p, c, T.tensor_indices, T.primal_inds)
                     ind += 1
@@ -123,7 +121,7 @@ function (T::Wrapper)(n::Cint,
         end
     end
     for n in 1:T.N
-        row[ind+1:ind+T.m[n]] = T.primal_inds[n][1]:T.primal_inds[n][2]
+        row[ind+1:ind+T.m[n]] = T.primal_inds[n,1]:T.primal_inds[n,2]
         data[ind+1:ind+T.m[n]] .= -1.0
         ind += T.m[n]
     end
@@ -131,16 +129,21 @@ function (T::Wrapper)(n::Cint,
 end
 
 
-function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};  silent=true) where L
+function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};  
+                             silent = true) where L
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
-
-    cs = cumsum(m)
-    ls = [1; [cs[i]+1 for i ∈ 1:N-1]]
-    primal_inds = [Cint.([lo,hi]) for (lo,hi) ∈ zip(ls,cs)]
-    num_primals = Cint(cs[N])
-    dual_inds = Cint.(num_primals+1:num_primals+N)
+    primal_inds = zeros(Cint,N,2)
+    primal_inds[1,1] = 1
+    primal_inds[1,2] = m[1]
+    for n ∈ 2:N
+        primal_inds[n,1] = primal_inds[n-1,2]+1
+        primal_inds[n,2] = primal_inds[n,1]+m[n]-1
+    end
+    
+    num_primals = sum(m)
+    dual_inds = Vector{Cint}(num_primals+1:num_primals+N)
     
     tensor_indices = CartesianIndices(cost_tensors[1])
     nnz = 2*num_primals
@@ -148,22 +151,81 @@ function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}};  silent=tr
         nnz += m[n]*(num_primals-m[n])
     end
 
-    wrapper = Wrapper(cost_tensors, tensor_indices, primal_inds, dual_inds, N, m, num_primals)
+    wrapper! = Wrapper(cost_tensors, tensor_indices, primal_inds, dual_inds, N, m, num_primals)
 
     lb = [zeros(Cdouble, num_primals); -1e20 * ones(Cdouble, N)]
     ub = 1e20 * ones(Cdouble, num_primals + N)
     z = zeros(Cdouble, num_primals + N)
-    for (n, (start_ind, end_ind)) ∈ enumerate(primal_inds)
+    for n ∈ 1:N
+        start_ind = primal_inds[n,1]
+        end_ind = primal_inds[n,2]
         z[start_ind:end_ind] .= 1.0 / m[n]
     end
 
+    n = Cint(sum(m)+N)
+    x = randn(Cdouble,n)
+    f = zeros(Cdouble,n)
+    cnnz = Cint(nnz)
+    col = zeros(Cint, n)
+    len = zeros(Cint, n)
+    row = zeros(Cint, cnnz)
+    data = zeros(Cdouble, cnnz)
+    wrapper!(n,cnnz,x,col,len,row,data)
+
     status, vars, info = PATHSolver.solve_mcp(
-        wrapper,
-        wrapper,
+        wrapper!,
+        wrapper!,
         lb,
         ub,
         z;
         nnz,
         silent)
-    p_out = [vars[start_ind:end_ind] for (start_ind,end_ind) ∈ primal_inds]
+
+    x = [vars[primal_inds[n,1]:primal_inds[n,2]] for n ∈ 1:N]
+    λ = vars[dual_inds]
+    
+    (; x, λ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds)
+end
+
+"""
+    Computes derivative tensor D
+    D[n,i...,m] = ∂xₘ / ∂Tⁿᵢ, where i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ])
+    In other words, D[n,i...,m] is the partial derivative of xₘ with respect to 
+    the i-th element of player n's cost tensor.
+"""
+function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
+    primals = vcat(sol.x...)
+    vars = [primals; sol.λ]
+    n = Cint(length(vars))
+    N = length(sol.λ)
+    d = [length(xi) for xi ∈ sol.x]
+    starts = cumsum([0;d[1:end-1]])
+    num_primals = sum(d)
+
+    lb = [zeros(num_primals); -Inf*ones(N)]
+    unbound_indices = ( vars .> (lb .+ bound_tolerance) )
+    unbound_primals = unbound_indices[1:end-N]
+
+    col = zeros(Cint, n)
+    len = zeros(Cint, n)
+    row = zeros(Cint, sol.nnz)
+    data = zeros(Cdouble, sol.nnz)
+    sol.wrapper!(n,sol.nnz,vars,col,len,row,data)
+        
+    colptr = zeros(Cint, n+1)
+    colptr[1:n] .= col
+    colptr[n+1] = col[n] + len[n]
+
+    nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n,n,colptr,row,data))[unbound_indices, unbound_indices]))
+
+    for ind ∈ sol.tensor_indices
+        if primals(ind, sol.primal_inds) > bound_tolerance
+            for n ∈ 1:N
+                D[n,ind,unbound_primals] .= nJi[starts[n]+ind[n]] * primals(ind,sol.primal_inds,n)
+            end
+        else
+            println("huh")
+        end
+    end
+    return 
 end
