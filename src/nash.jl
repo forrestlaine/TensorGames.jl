@@ -124,6 +124,7 @@ end
 
 function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}},
                              initialization=nothing;
+                             ϵ = 0.0, # not used atm
                              silent = true,
                              convergence_tolerance = 1e-6) where L
     N = Cint(length(cost_tensors))
@@ -182,9 +183,10 @@ function compute_equilibrium(cost_tensors::Vector{Array{Float64, L}},
         silent)
 
     x = [vars[primal_inds[n,1]:primal_inds[n,2]] for n ∈ 1:N]
+    V = [expected_cost(cost_tensors[n], vars, tensor_indices, primal_inds) for n ∈ 1:N]
     λ = vars[dual_inds]
     
-    (; x, λ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds)
+    (; x, V, λ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds)
 end
 
 """
