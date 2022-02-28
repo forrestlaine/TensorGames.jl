@@ -10,58 +10,29 @@ Functionality for computing mixed-strategy Nash equilibrium points of a multi-pl
 Supply a vector of cost tensors (one for each player) as input to the function ```compute_equilibrium```. 
 ```cost_tensors[i][j1,j2,...,jN]``` is the cost faced by player i when player 1 plays action j1, player 2 plays action j2, etc.
 
+Additional functionality is provided to compute derivative information of solutions with respect to the elements of the cost tensors. To compute this information,
+supply the output of ```compute_equilibrium``` and a derivative tensor ```D``` to the function ```compute_derivatives!```. Here, ```D[n,i...,m] := ∂xₘ / ∂Tⁿᵢ```, where x is the concatenated vector of all player's strategy weights, and i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ]).  In other words, D[n,i...,m] is the partial derivative of xₘ with respect to the i-th element of player n's cost tensor.
 
-## Example:
-
+## Example: 
 ```julia
 
-julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N];
-julia> compute_equilibrium(cost_tensors; silent=false)
-```
-```
-Path 5.0.03 (Fri Jun 26 09:58:07 2020)
-Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
-
-Crash Log
-major  func  diff  size  residual    step       prox   (label)
-    0     0             2.4185e-01             0.0e+00 (f[    3])
-pn_search terminated: no progress.
-
-Major Iteration Log
-major minor  func  grad  residual    step  type prox    inorm  (label)
-    0     0    13     1 2.4185e-01           I 0.0e+00 1.1e-01 (f[    3])
-    1     4    14     2 2.9281e-01  1.0e+00 SO 0.0e+00 1.8e-01 (f[   18])
-    2     3    15     3 7.3240e-02  1.0e+00 SO 0.0e+00 3.6e-02 (f[    5])
-    3     1    16     4 1.7875e-01  1.0e+00 SO 0.0e+00 8.3e-02 (f[   14])
-    4     1    17     5 4.5813e-02  1.0e+00 SO 0.0e+00 1.8e-02 (f[   11])
-    5     1    18     6 8.3418e-03  1.0e+00 SO 0.0e+00 4.9e-03 (f[    4])
-    6     1    19     7 3.8377e-05  1.0e+00 SO 0.0e+00 2.0e-05 (f[   14])
-    7     1    20     8 1.3717e-08  1.0e+00 SO 0.0e+00 5.8e-09 (f[    4])
-
-Major Iterations. . . . 7
-Minor Iterations. . . . 12
-Restarts. . . . . . . . 0
-Crash Iterations. . . . 0
-Gradient Steps. . . . . 0
-Function Evaluations. . 20
-Gradient Evaluations. . 8
-Basis Time. . . . . . . 0.000277
-Total Time. . . . . . . 0.026862
-Residual. . . . . . . . 1.371658e-08
+julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N]; D = zeros(N,d...,sum(d));
+julia> sol = compute_equilibrium(cost_tensors);
+julia> sol.x
 6-element Vector{Vector{Float64}}:
- [0.0, 0.4997507402515058, 0.5002492597484942]
- [0.2911117268969821, 0.3089404902069817, 0.3999477828960362]
- [0.30284232558594837, 0.0, 0.6971576744140516]
- [0.0, 0.5027255640655567, 0.4972744359344433]
- [0.45117574225907664, 0.2990364456997047, 0.24978781204121855]
- [0.4895995548672493, 0.3763290202188116, 0.13407142491393903]
+ [0.6147367189021904, 0.0, 0.3852632810978094]
+ [0.0, 0.13423377322536922, 0.8657662267746299]
+ [0.30978296032333746, 0.6902170396766623, 0.0]
+ [0.0, 0.9999999999999994, 0.0]
+ [0.5483759176454717, 0.20182657833950027, 0.24979750401502793]
+ [0.4761196190151526, 0.38291994996153766, 0.1409604310233093]
+julia> compute_derivatives!(D, sol);  
+julia> D[1, 3, 2, 1, 2, 3, 3, 1]
+0.0011453641054479879
+
 ```
 
-```julia
-julia> @btime compute_equilibrium(cost_tensors);
-  24.553 ms (210 allocations: 15.42 KiB)
-```
- 
+ See additional examples of usage in the test directory, in which checks for the satisfaction of equilibrium conditions and derivative correctness are performed. 
  
 
 
