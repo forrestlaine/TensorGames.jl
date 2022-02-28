@@ -18,7 +18,18 @@ supply the output of ```compute_equilibrium``` and a derivative tensor ```D``` t
 
 julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N]; D = zeros(N,d...,sum(d));
 julia> sol = compute_equilibrium(cost_tensors);
+julia> sol.x
+6-element Vector{Vector{Float64}}:
+ [0.6147367189021904, 0.0, 0.3852632810978094]
+ [0.0, 0.13423377322536922, 0.8657662267746299]
+ [0.30978296032333746, 0.6902170396766623, 0.0]
+ [0.0, 0.9999999999999994, 0.0]
+ [0.5483759176454717, 0.20182657833950027, 0.24979750401502793]
+ [0.4761196190151526, 0.38291994996153766, 0.1409604310233093]
 julia> compute_derivatives!(D, sol);  
+julia> D[1, 3, 2, 1, 2, 3, 3, 1]
+0.0011453641054479879
+
 ```
 
  See additional examples of usage in the test directory, in which checks for the satisfaction of equilibrium conditions and derivative correctness are performed. 
