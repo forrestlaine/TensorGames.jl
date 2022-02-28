@@ -11,7 +11,7 @@ Supply a vector of cost tensors (one for each player) as input to the function `
 ```cost_tensors[i][j1,j2,...,jN]``` is the cost faced by player i when player 1 plays action j1, player 2 plays action j2, etc.
 
 Additional functionality is provided to compute derivative information of solutions with respect to the elements of the cost tensors. To compute this information,
-supply the output of ```compute_equilibrium``` and a derivative tensor ```D``` to the function ```compute_derivatives!```. Here, ```D[n,i...,m] := ∂xₘ / ∂Tⁿᵢ```, where i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ]).
+supply the output of ```compute_equilibrium``` and a derivative tensor ```D``` to the function ```compute_derivatives!```. Here, ```D[n,i...,m] := ∂xₘ / ∂Tⁿᵢ```, where x is the concatenated vector of all player's strategy weights, and i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ]).
 
 ## Example: 
 ```julia
