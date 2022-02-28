@@ -1,4 +1,9 @@
 # NashEquilibrium.jl
+
+[![CI](https://github.com/4estlaine/NashEquilibrium.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/4estlaine/NashEquilibrium.jl/actions/workflows/CI.yml)
+<!-- [![codecov](https://codecov.io/gh/lassepe/iLQGames.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/lassepe/iLQGames.jl) -->
+ [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
 Functionality for computing mixed-strategy Nash equilibrium points of a multi-player, finite action, general-sum game. Uses the PATH solver to compute, via PATHSolver.jl.
 
 ## Usage:
