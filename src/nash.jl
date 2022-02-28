@@ -186,7 +186,7 @@ function compute_equilibrium(cost_tensors,
     V = [expected_cost(cost_tensors[n], vars, tensor_indices, primal_inds) for n ∈ 1:N]
     λ = vars[dual_inds]
     
-    (; x, V, λ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds)
+    (; x, V, λ, _deriv_info=(;wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds))
 end
 
 """
@@ -218,19 +218,19 @@ function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
     end
     col = zeros(Cint, n)
     len = zeros(Cint, n)
-    row = zeros(Cint, sol.nnz)
-    data = zeros(Cdouble, sol.nnz)
-    sol.wrapper!(n,sol.nnz,vars,col,len,row,data)
+    row = zeros(Cint, sol._deriv_info.nnz)
+    data = zeros(Cdouble, sol._deriv_info.nnz)
+    sol._deriv_info.wrapper!(n,sol._deriv_info.nnz,vars,col,len,row,data)
         
     colptr = zeros(Cint, n+1)
     colptr[1:n] .= col
     colptr[n+1] = col[n] + len[n]
     nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n,n,colptr,row,data))[unbound_indices, unbound_indices]))
 
-    for ind ∈ sol.tensor_indices
-        if prob_prod(primals, ind, sol.primal_inds) > (bound_tolerance)^N
+    for ind ∈ sol._deriv_info.tensor_indices
+        if prob_prod(primals, ind, sol._deriv_info.primal_inds) > (bound_tolerance)^N
             for n ∈ 1:N
-                D[n,ind,unbound_primals] .= nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol.primal_inds,n)
+                D[n,ind,unbound_primals] .= nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol._deriv_info.primal_inds,n)
             end
         end
     end
