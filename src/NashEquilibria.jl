@@ -1,4 +1,4 @@
-module NashEquilibrium
+module NashEquilibria
 
 using PATHSolver
 using SparseArrays
