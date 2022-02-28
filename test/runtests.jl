@@ -1,5 +1,5 @@
 using Test
-using NashEquilibrium
+using NashEquilibria
 using LinearAlgebra: norm
 
 include("test_equilibrium.jl")
