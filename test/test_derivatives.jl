@@ -23,7 +23,7 @@
                     num_deriv = (x2-x)./ϵ
                     if any(abs.(num_deriv) .≥ d_max)
                         continue
-                    else
+                    end
                     for j ∈ 1:length(num_deriv)
                         @test ≈(D[n,ii,j], num_deriv[j]; atol=ϵ2)
                     end
