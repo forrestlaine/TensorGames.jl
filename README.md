@@ -13,7 +13,6 @@ Supply a vector of cost tensors (one for each player) as input to the function `
 Additional functionality is provided to compute derivative information of solutions with respect to the elements of the cost tensors. To compute this information,
 supply the output of ```compute_equilibrium``` and a derivative tensor ```D``` to the function ```compute_derivatives!```. Here, ```D[n,i...,m] := ∂xₘ / ∂Tⁿᵢ```, where x is the concatenated vector of all player's strategy weights, and i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ]).  In other words, D[n,i...,m] is the partial derivative of xₘ with respect to the i-th element of player n's cost tensor.
 
-
 ## Example: 
 ```julia
 
@@ -22,7 +21,7 @@ julia> sol = compute_equilibrium(cost_tensors);
 julia> compute_derivatives!(D, sol);  
 ```
 
- 
+ See additional examples of usage in the test directory, in which checks for the satisfaction of equilibrium conditions and derivative correctness are performed. 
  
 
 
