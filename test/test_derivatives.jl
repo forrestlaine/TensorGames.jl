@@ -3,6 +3,7 @@
         for iteration ∈ 1:5
             ϵ = 1e-6
             ϵ2 = 1e-3
+            d_max = 50.0 # ignore very large numerical derivatives, as they imply non-local solution
             sol_tol = 1e-10
             d = 3*ones(Int,N)
             cost_tensors = [randn(d...) for n ∈ 1:N]
@@ -20,6 +21,9 @@
                     x2 = vcat(sol2.x...)
                     ii = cinds[i]
                     num_deriv = (x2-x)./ϵ
+                    if any(abs.(num_deriv) .≥ d_max)
+                        continue
+                    else
                     for j ∈ 1:length(num_deriv)
                         @test ≈(D[n,ii,j], num_deriv[j]; atol=ϵ2)
                     end
