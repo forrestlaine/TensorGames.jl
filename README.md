@@ -1,4 +1,4 @@
-# NashEquilibrium.jl
+# NashEquilibria.jl
 
 [![CI](https://github.com/4estlaine/NashEquilibrium.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/4estlaine/NashEquilibrium.jl/actions/workflows/CI.yml)
 [![codecov](https://codecov.io/gh/4estlaine/NashEquilibrium.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/4estlaine/NashEquilibrium.jl)
