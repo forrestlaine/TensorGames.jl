@@ -36,13 +36,13 @@ end
         for n ∈ 1:N
             @test sum(sol.x[n]) ≈ 1.0
             @test all(sol.x[n] .≥ 0.0)
-            true_cost = expected_cost(cost_tensors[n], xvec, sol.tensor_indices, sol.primal_inds)
+            true_cost = expected_cost(cost_tensors[n], xvec, sol._deriv_info.tensor_indices, sol._deriv_info.primal_inds)
             for j ∈ 1:100
                 p = valid_perturbation(sol.x[n])
                 x2 = deepcopy(sol.x)
                 x2[n] += 1e-4*p
                 xvec2 = vcat(x2...)
-                other_cost = expected_cost(cost_tensors[n], xvec2, sol.tensor_indices, sol.primal_inds)
+                other_cost = expected_cost(cost_tensors[n], xvec2, sol._deriv_info.tensor_indices, sol._deriv_info.primal_inds)
                 @test other_cost ≥ true_cost - ϵ
             end
         end
