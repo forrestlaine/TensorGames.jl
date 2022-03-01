@@ -1,5 +1,5 @@
 using Test
-using NashEquilibria
+using TensorGames
 using LinearAlgebra: norm
 
 include("test_equilibrium.jl")

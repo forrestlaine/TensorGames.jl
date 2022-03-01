@@ -1,4 +1,4 @@
-module NashEquilibria
+module TensorGames
 
 using PATHSolver
 using SparseArrays
