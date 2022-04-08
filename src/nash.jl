@@ -1,3 +1,16 @@
+function primal_inds(d)
+    N = length(d)
+    inds = zeros(Cint, N, 2)
+    inds[1,1] = 1
+    inds[1,2] = d[1]
+    for n ∈ 2:N
+        inds[n,1] = inds[n-1,2]+1
+        inds[n,2] = inds[n,1]+d[n]-1
+    end
+    inds
+end
+@non_differentiable primal_inds(d)
+
 function prob_prod(x, ind, primal_inds, n...)
     N = size(primal_inds,1)
     length(n) == N && return 1.0
@@ -6,6 +19,14 @@ end
 
 function expected_cost(T, x, indices, primal_inds)
     val = sum(T[ind]*prob_prod(x,ind,primal_inds) for ind ∈ indices)
+end
+
+function expected_cost(x, cost_tensor)
+    N = length(x)
+    d = size(cost_tensor)
+    tensor_indices = CartesianIndices(cost_tensor)
+    primal_indices = primal_inds(d)
+    expected_cost(cost_tensor, reduce(vcat,x), tensor_indices, primal_indices) 
 end
 
 function grad!(f, T, x, n, indices, primal_inds)
@@ -122,21 +143,15 @@ function (T::Wrapper)(n::Cint,
 end
 
 
-function compute_equilibrium(cost_tensors,
-                             initialization=nothing;
+function compute_equilibrium(cost_tensors;
+                             initialization=nothing,
                              ϵ = 0.0, # not used atm
                              silent = true,
                              convergence_tolerance = 1e-6)
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
-    primal_inds = zeros(Cint,N,2)
-    primal_inds[1,1] = 1
-    primal_inds[1,2] = m[1]
-    for n ∈ 2:N
-        primal_inds[n,1] = primal_inds[n-1,2]+1
-        primal_inds[n,2] = primal_inds[n,1]+m[n]-1
-    end
+    primal_indices = primal_inds(m)
     
     num_primals = sum(m)
     dual_inds = Vector{Cint}(num_primals+1:num_primals+N)
@@ -147,15 +162,15 @@ function compute_equilibrium(cost_tensors,
         nnz += m[n]*(num_primals-m[n])
     end
 
-    wrapper! = Wrapper(cost_tensors, tensor_indices, primal_inds, dual_inds, N, m, num_primals)
+    wrapper! = Wrapper(cost_tensors, tensor_indices, primal_indices, dual_inds, N, m, num_primals)
 
     lb = [zeros(Cdouble, num_primals); -1e20 * ones(Cdouble, N)]
     ub = 1e20 * ones(Cdouble, num_primals + N)
     z = zeros(Cdouble, num_primals + N)
     if isnothing(initialization)
         for n ∈ 1:N
-            start_ind = primal_inds[n,1]
-            end_ind = primal_inds[n,2]
+            start_ind = primal_indices[n,1]
+            end_ind = primal_indices[n,2]
             z[start_ind:end_ind] .= 1.0 / m[n]
         end
     else
@@ -165,12 +180,6 @@ function compute_equilibrium(cost_tensors,
     n = Cint(sum(m)+N)
     x = randn(Cdouble,n)
     f = zeros(Cdouble,n)
-    cnnz = Cint(nnz)
-    col = zeros(Cint, n)
-    len = zeros(Cint, n)
-    row = zeros(Cint, cnnz)
-    data = zeros(Cdouble, cnnz)
-    wrapper!(n,cnnz,x,col,len,row,data)
 
     status, vars, info = PATHSolver.solve_mcp(
         wrapper!,
@@ -182,25 +191,41 @@ function compute_equilibrium(cost_tensors,
         convergence_tolerance,
         silent)
 
-    x = [vars[primal_inds[n,1]:primal_inds[n,2]] for n ∈ 1:N]
-    V = [expected_cost(cost_tensors[n], vars, tensor_indices, primal_inds) for n ∈ 1:N]
+    x = [vars[primal_indices[n,1]:primal_indices[n,2]] for n ∈ 1:N]
     λ = vars[dual_inds]
     
-    (; x, V, λ, _deriv_info=(;wrapper!, nnz=Cint(nnz), tensor_indices, primal_inds))
+    (; x, λ, _deriv_info=(; wrapper!, nnz=Cint(nnz), tensor_indices, primal_indices))
 end
 
-"""
-    Computes derivative tensor D
-    D[n,i...,m] = ∂xₘ / ∂Tⁿᵢ, where i is a cartesian index (i.e. i:=[i₁,i₂,...,iₙ])
-    In other words, D[n,i...,m] is the partial derivative of xₘ with respect to 
-    the i-th element of player n's cost tensor.
-"""
-function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
+function ChainRulesCore.rrule(::typeof(compute_equilibrium),
+                              cost_tensors;
+                              initialization=nothing,
+                              ϵ=0.0,
+                              silent=true,
+                              convergence_tolerance=1e-6)
+    res = compute_equilibrium(cost_tensors; initialization, ϵ, silent, convergence_tolerance)
+
+    function compute_equilibrium_pullback(∂res)
+        ∂self = NoTangent()
+        ∂cost_tensors = compute_sensitivity(res, ∂res.x)
+        ∂self, ∂cost_tensors
+    end
+
+    res, compute_equilibrium_pullback
+end
+ 
+
+function compute_sensitivity(sol, sensitivity; bound_tolerance = 1e-6)
     primals = vcat(sol.x...)
+    sensitivity_full = map(sensitivity, sol.x) do s,x
+        isa(s, ZeroTangent) ? zero(x) : s
+    end
+    derivs = vcat(sensitivity_full...)
     vars = [primals; sol.λ]
     n = Cint(length(vars))
     N = length(sol.λ)
     d = [length(xi) for xi ∈ sol.x]
+    ∂cost_tensors = [zeros(d...) for _ ∈ 1:N]
     starts = cumsum([0;d[1:end-1]])
     num_primals = sum(d)
 
@@ -228,11 +253,11 @@ function compute_derivatives!(D, sol; bound_tolerance = 1e-6)
     nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n,n,colptr,row,data))[unbound_indices, unbound_indices]))
 
     for ind ∈ sol._deriv_info.tensor_indices
-        if prob_prod(primals, ind, sol._deriv_info.primal_inds) > (bound_tolerance)^N
+        if prob_prod(primals, ind, sol._deriv_info.primal_indices) > (bound_tolerance)^N
             for n ∈ 1:N
-                D[n,ind,unbound_primals] .= nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol._deriv_info.primal_inds,n)
+                ∂cost_tensors[n][ind] = derivs[unbound_primals]' * (nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol._deriv_info.primal_indices,n))
             end
         end
     end
-    return 
+    return ∂cost_tensors
 end
