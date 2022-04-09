@@ -27,4 +27,20 @@ julia> sol.x
  [0.4761196190151526, 0.38291994996153766, 0.1409604310233093]
 ```
 
- See additional examples of usage in the test directory, in which checks for the satisfaction of equilibrium conditions and derivative correctness are performed. 
+Use the function ```julia expected_cost(sol.x, cost_tensor)``` to compute the equilibrium cost for the player whose objective is represented by cost_tensor.
+
+To specify the minimum strategy weight, use the kwarg 'ϵ':
+```julia
+julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N];
+julia> sol = compute_equilibrium(cost_tensors; ϵ=0.05);
+julia> sol.x
+6-element Vector{Vector{Float64}}:
+ [0.41301195721648803, 0.17743767597659854, 0.40955036680691337]
+ [0.05, 0.05, 0.8999999999999998]
+ [0.05, 0.28627171177928123, 0.6637282882207187]
+ [0.07255559962614289, 0.05, 0.8774444003738571]
+ [0.1925535715622543, 0.7574464284377457, 0.05]
+ [0.8560862135625118, 0.05, 0.0939137864374882]
+```
+
+See additional examples of usage in the test directory, in which checks for the satisfaction of equilibrium conditions and derivative correctness are performed. 
