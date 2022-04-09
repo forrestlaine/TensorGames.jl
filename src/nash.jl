@@ -145,7 +145,7 @@ end
 
 function compute_equilibrium(cost_tensors;
                              initialization=nothing,
-                             ϵ = 0.0, # not used atm
+                             ϵ = 0.0,
                              silent = true,
                              convergence_tolerance = 1e-6)
     N = Cint(length(cost_tensors))
@@ -164,7 +164,7 @@ function compute_equilibrium(cost_tensors;
 
     wrapper! = Wrapper(cost_tensors, tensor_indices, primal_indices, dual_inds, N, m, num_primals)
 
-    lb = [zeros(Cdouble, num_primals); -1e20 * ones(Cdouble, N)]
+    lb = [ϵ*ones(Cdouble, num_primals); -1e20 * ones(Cdouble, N)]
     ub = 1e20 * ones(Cdouble, num_primals + N)
     z = zeros(Cdouble, num_primals + N)
     if isnothing(initialization)
@@ -194,7 +194,7 @@ function compute_equilibrium(cost_tensors;
     x = [vars[primal_indices[n,1]:primal_indices[n,2]] for n ∈ 1:N]
     λ = vars[dual_inds]
     
-    (; x, λ, _deriv_info=(; wrapper!, nnz=Cint(nnz), tensor_indices, primal_indices))
+    (; x, λ, _deriv_info=(; ϵ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_indices))
 end
 
 function ChainRulesCore.rrule(::typeof(compute_equilibrium),
@@ -214,10 +214,9 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     res, compute_equilibrium_pullback
 end
  
-
 function compute_sensitivity(sol, sensitivity; bound_tolerance = 1e-6)
     primals = vcat(sol.x...)
-    sensitivity_full = map(sensitivity, sol.x) do s,x
+    sensitivity_full = map(sensitivity, sol.x) do s, x
         isa(s, ZeroTangent) ? zero(x) : s
     end
     derivs = vcat(sensitivity_full...)
@@ -229,7 +228,7 @@ function compute_sensitivity(sol, sensitivity; bound_tolerance = 1e-6)
     starts = cumsum([0;d[1:end-1]])
     num_primals = sum(d)
 
-    lb = [zeros(num_primals); -Inf*ones(N)]
+    lb = [sol._deriv_info.ϵ*ones(num_primals); -Inf*ones(N)]
     unbound_indices = ( vars .> (lb .+ bound_tolerance) )
     unbound_primals = unbound_indices[1:end-N]
     nup = sum(unbound_primals)
@@ -253,8 +252,8 @@ function compute_sensitivity(sol, sensitivity; bound_tolerance = 1e-6)
     nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n,n,colptr,row,data))[unbound_indices, unbound_indices]))
 
     for ind ∈ sol._deriv_info.tensor_indices
-        if prob_prod(primals, ind, sol._deriv_info.primal_indices) > (bound_tolerance)^N
-            for n ∈ 1:N
+        for n ∈ 1:N
+            if ubmap[starts[n]+ind[n]] > 0
                 ∂cost_tensors[n][ind] = derivs[unbound_primals]' * (nJi[1:nup,ubmap[starts[n]+ind[n]]] * prob_prod(primals,ind,sol._deriv_info.primal_indices,n))
             end
         end

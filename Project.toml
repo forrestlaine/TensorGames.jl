@@ -1,7 +1,7 @@
 name = "TensorGames"
 uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
 authors = ["Forrest Laine <forrest.laine@vanderbilt.edu>"]
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -11,6 +11,6 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+ChainRulesCore = "1.14"
 PATHSolver = "1.1.1"
 julia = "1.7"
-ChainRulesCore = "1.14"
