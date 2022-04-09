@@ -214,7 +214,6 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     res, compute_equilibrium_pullback
 end
  
-using Infiltrator
 function compute_sensitivity(sol, sensitivity; bound_tolerance = 1e-6)
     primals = vcat(sol.x...)
     sensitivity_full = map(sensitivity, sol.x) do s, x
