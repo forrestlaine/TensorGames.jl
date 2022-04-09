@@ -17,8 +17,8 @@ function prob_prod(x, ind, primal_inds, n...)
     prod(x[primal_inds[i,1]+ind[i]-1] for i ∈ 1:N if i ∉ n)
 end
 
-function expected_cost(T, x, indices, primal_inds)
-    val = sum(T[ind]*prob_prod(x,ind,primal_inds) for ind ∈ indices)
+function expected_cost(CT, x::Vector{T}, indices, primal_inds)::T where T
+    val = sum(CT[ind]*prob_prod(x,ind,primal_inds) for ind ∈ indices)
 end
 
 function expected_cost(x, cost_tensor)
@@ -29,12 +29,12 @@ function expected_cost(x, cost_tensor)
     expected_cost(cost_tensor, reduce(vcat,x), tensor_indices, primal_indices) 
 end
 
-function grad!(f, T, x, n, indices, primal_inds)
+function grad!(f, CT, x, n, indices, primal_inds)
     f[primal_inds[n,1]:primal_inds[n,2]] .= 0.0
     for ind ∈ indices
         for i ∈ 1:primal_inds[n,2]+1-primal_inds[n,1]
             if ind[n] == i
-                f[primal_inds[n,1]+i-1] += T[ind]*prob_prod(x,ind,primal_inds,n)
+                f[primal_inds[n,1]+i-1] += CT[ind]*prob_prod(x,ind,primal_inds,n)
             end
         end
     end
@@ -181,7 +181,7 @@ function compute_equilibrium(cost_tensors;
     x = randn(Cdouble,n)
     f = zeros(Cdouble,n)
 
-    status, vars, info = PATHSolver.solve_mcp(
+    status, vars::Vector{Cdouble}, info = PATHSolver.solve_mcp(
         wrapper!,
         wrapper!,
         lb,
