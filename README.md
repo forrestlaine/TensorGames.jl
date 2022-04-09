@@ -29,7 +29,7 @@ julia> sol.x
 
 Use the function ```julia expected_cost(sol.x, cost_tensor)``` to compute the equilibrium cost for the player whose objective is represented by cost_tensor.
 
-To specify the minimum strategy weight, use the kwarg 'ϵ':
+Equilibrium points can also be found when minimum strategy weights are enforced. In other words, for fixed strategies of players (-i), player i's strategy is optimal among those with minimum weight specified by ϵ:
 ```julia
 julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N];
 julia> sol = compute_equilibrium(cost_tensors; ϵ=0.05);
