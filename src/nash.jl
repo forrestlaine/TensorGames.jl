@@ -29,12 +29,38 @@ function expected_cost(x, cost_tensor)
     expected_cost(cost_tensor, reduce(vcat, x), tensor_indices, primal_indices)
 end
 
+function ChainRulesCore.rrule(::typeof(expected_cost), x, cost_tensor)
+    N = length(x)
+    d = size(cost_tensor)
+    tensor_indices = CartesianIndices(cost_tensor)
+    primal_indices = primal_inds(d)
+    xx = reduce(vcat, x)
+    value = expected_cost(cost_tensor, xx, tensor_indices, primal_indices)
+
+    function expected_cost_pullback(∂value)
+        ∂x = zeros(sum(d))
+        for n ∈ 1:N
+            grad!(∂x, cost_tensor, xx, n, tensor_indices, primal_indices)
+        end
+        ∂x .*= ∂value
+        ∂x = [∂x[primal_indices[n,1]:primal_indices[n,2]] for n ∈ 1:N]
+
+        ∂ct = zero(cost_tensor)
+        for ind ∈ tensor_indices
+            ∂ct[ind] = ∂value * prob_prod(xx, ind, primal_indices)
+        end
+        NoTangent(), ∂x, ∂ct
+    end
+    value, expected_cost_pullback
+end
+
 function grad!(f, CT, x, n, indices, primal_inds)
     f[primal_inds[n, 1]:primal_inds[n, 2]] .= 0.0
-    for ind ∈ indices
+    for ind ∈ indices        
+        prob = prob_prod(x,ind,primal_inds, n)
         for i ∈ 1:primal_inds[n, 2]+1-primal_inds[n, 1]
             if ind[n] == i
-                f[primal_inds[n, 1]+i-1] += CT[ind] * prob_prod(x, ind, primal_inds, n)
+                f[primal_inds[n, 1]+i-1] += CT[ind] * prob
             end
         end
     end
