@@ -252,13 +252,12 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     res, compute_equilibrium_pullback
 end
 
-function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6)
+function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6, singularity_tolerance = 1e-6)
     primals = vcat(res.x...)
     vars = [primals; res.λ]
     n = Cint(length(vars))
     N = length(res.λ)
     d = [length(xi) for xi ∈ res.x]
-    ∂cost_tensors = [zeros(sum(d), d...) for _ ∈ 1:N]
     starts = cumsum([0; d[1:end-1]])
     num_primals = sum(d)
 
@@ -283,7 +282,16 @@ function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6)
     colptr = zeros(Cint, n + 1)
     colptr[1:n] .= col
     colptr[n+1] = col[n] + len[n]
-    nJi = -inv(Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n, n, colptr, row, data))[unbound_indices, unbound_indices]))
+
+    ∂cost_tensors = [zeros(sum(d), d...) for _ ∈ 1:N]
+
+    nJ = Matrix{Cdouble}((SparseMatrixCSC{Cdouble,Cint}(n, n, colptr, row, data))[unbound_indices, unbound_indices])
+    factorization = qr(nJ)
+    if any(abs(r) ≤ singularity_tolerance for r ∈ diag(factorization.R))
+        # Artificially returning zero-derivatives if solution is non-isolated.
+        return ∂cost_tensors
+    end
+    nJi = factorization\(-I)
 
     for ind ∈ res._deriv_info.tensor_indices
         for n ∈ 1:N
