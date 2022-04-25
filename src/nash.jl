@@ -168,7 +168,7 @@ function (T::Wrapper)(n::Cint,
     return Cint(0)
 end
 
-function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:ForwardDiff.Dual}}; kwargs...)
+function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:ForwardDiff.Dual{T}}}; kwargs...) where {T}
     # strip off the duals:
     cost_tensors_v = [ForwardDiff.value.(c) for c in cost_tensors]
     cost_tensors_p = [ForwardDiff.partials.(c) for c in cost_tensors]
@@ -194,8 +194,7 @@ function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:Forw
     end
 
     # 3. glue primal and dual results together into a ForwardDiff.Dual-valued result
-    # TODO: think about tagging to avoid perturbation confusion
-    x_d = [ForwardDiff.Dual.(xi_v, xi_p) for (xi_v, xi_p) in zip(res.x, x_p)]
+    x_d = [ForwardDiff.Dual{T}.(xi_v, xi_p) for (xi_v, xi_p) in zip(res.x, x_p)]
 
     (; x = x_d, res.λ, res._deriv_info)
 end
