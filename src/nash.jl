@@ -43,7 +43,7 @@ function ChainRulesCore.rrule(::typeof(expected_cost), x, cost_tensor)
             grad!(∂x, cost_tensor, xx, n, tensor_indices, primal_indices)
         end
         ∂x .*= ∂value
-        ∂x = [∂x[primal_indices[n,1]:primal_indices[n,2]] for n ∈ 1:N]
+        ∂x = [∂x[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
 
         ∂ct = zero(cost_tensor)
         for ind ∈ tensor_indices
@@ -56,8 +56,8 @@ end
 
 function grad!(f, CT, x, n, indices, primal_inds)
     f[primal_inds[n, 1]:primal_inds[n, 2]] .= 0.0
-    for ind ∈ indices        
-        prob = prob_prod(x,ind,primal_inds, n)
+    for ind ∈ indices
+        prob = prob_prod(x, ind, primal_inds, n)
         for i ∈ 1:primal_inds[n, 2]+1-primal_inds[n, 1]
             if ind[n] == i
                 f[primal_inds[n, 1]+i-1] += CT[ind] * prob
@@ -168,12 +168,44 @@ function (T::Wrapper)(n::Cint,
     return Cint(0)
 end
 
+function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:ForwardDiff.Dual{T}}}; kwargs...) where {T}
+    # strip off the duals:
+    cost_tensors_v = [ForwardDiff.value.(c) for c in cost_tensors]
+    cost_tensors_p = [ForwardDiff.partials.(c) for c in cost_tensors]
+    # forward pass
+    res = compute_equilibrium(cost_tensors_v; kwargs...)
+    # backward pass
+    # 1. compute jacobian
+    _back = _compute_equilibrium_pullback(res)
+    # 2. project input-sensitivy through jacobian to yield output sensitivy
+    x_p = let
+        # output sensitivities stacked for all players
+        x_p_stacked = sum(zip(cost_tensors_p, _back)) do (cost_tensor_p, ∂cost_tensor)
+            inflated_cost_tensor_p = reshape(cost_tensor_p, 1, size(cost_tensor_p)...)
+            dims = 2:ndims(inflated_cost_tensor_p)
+            reshape(sum(∂cost_tensor .* inflated_cost_tensor_p; dims), size(∂cost_tensor, 1))
+        end
+        # unstacking the output sensitivities
+        n_actions_per_player = size(first(cost_tensors))
+        x_p_stacked_it = Iterators.Stateful(x_p_stacked)
+        map(n_actions_per_player) do n_actions
+            Iterators.take(x_p_stacked_it, n_actions) |> collect
+        end
+    end
+
+    # 3. glue primal and dual results together into a ForwardDiff.Dual-valued result
+    x_d = [ForwardDiff.Dual{T}.(xi_v, xi_p) for (xi_v, xi_p) in zip(res.x, x_p)]
+
+    (; x = x_d, res.λ, res._deriv_info)
+end
+
 
 function compute_equilibrium(cost_tensors;
     initialization = nothing,
     ϵ = 0.0,
     silent = true,
     convergence_tolerance = 1e-6)
+
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
@@ -240,7 +272,7 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
             full_sensitivities = map(∂res.x, res.x) do r, x
                 r isa ZeroTangent ? zeros(x) : r
             end
-            derivs = vcat(full_sensitivities...)
+            derivs = reduce(vcat, full_sensitivities)
 
             map(_back) do ∂cost_tensor
                 dropdims(sum(∂cost_tensor .* derivs; dims = 1); dims = 1)
@@ -291,7 +323,7 @@ function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6, singularity_
         # Artificially returning zero-derivatives if solution is non-isolated.
         return ∂cost_tensors
     end
-    nJi = factorization\(-I)
+    nJi = factorization \ (-I)
 
     for ind ∈ res._deriv_info.tensor_indices
         for n ∈ 1:N
