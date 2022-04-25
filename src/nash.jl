@@ -168,7 +168,7 @@ function (T::Wrapper)(n::Cint,
     return Cint(0)
 end
 
-function compute_equilibrium(cost_tensors::Vector{<:Array{<:ForwardDiff.Dual}}; kwargs...)
+function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:ForwardDiff.Dual}}; kwargs...)
     # strip off the duals:
     cost_tensors_v = [ForwardDiff.value.(c) for c in cost_tensors]
     cost_tensors_p = [ForwardDiff.partials.(c) for c in cost_tensors]
