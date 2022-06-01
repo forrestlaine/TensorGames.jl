@@ -211,7 +211,7 @@ function compute_equilibrium(cost_tensors;
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
     primal_indices = primal_inds(m)
 
-    num_primals = sum(m)
+    num_primals::Cint = sum(m)
     dual_inds = Vector{Cint}(num_primals+1:num_primals+N)
 
     tensor_indices = CartesianIndices(cost_tensors[1])
