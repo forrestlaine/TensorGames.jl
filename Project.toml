@@ -1,7 +1,7 @@
 name = "TensorGames"
 uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
 authors = ["Forrest Laine <forrest.laine@vanderbilt.edu>"]
-version = "0.3.5"
+version = "0.3.6"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
