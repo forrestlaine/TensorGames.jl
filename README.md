@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/4estlaine/TensorGames.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/4estlaine/TensorGames.jl)
  [![License](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
 
-Efficient functionality for computing mixed-strategy Nash equilibrium points of a multi-player, finite action, general-sum game. Uses the PATH solver to compute, via PATHSolver.jl.
+Efficient functionality for computing mixed-strategy Nash equilibrium points of a multi-player, finite action, general-sum game. Uses the PATH solver to compute, via [PATHSolver.jl](https://github.com/chkwon/PATHSolver.jl).
 
 ## Usage:
 Supply a vector of cost tensors (one for each player) as input to the function ```compute_equilibrium```. 
