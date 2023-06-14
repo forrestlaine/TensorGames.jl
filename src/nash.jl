@@ -173,7 +173,7 @@ function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:Forw
     cost_tensors_v = [ForwardDiff.value.(c) for c in cost_tensors]
     cost_tensors_p = [ForwardDiff.partials.(c) for c in cost_tensors]
     # forward pass
-    res = compute_equilibrium(cost_tensors_v; kwargs...)
+    res = compute_equilibrium(cost_tensors_v, constraint_tensors, confidence; kwargs...)
     # backward pass
     # 1. compute jacobian
     _back = _compute_equilibrium_pullback(res)
@@ -196,15 +196,23 @@ function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:Forw
     # 3. glue primal and dual results together into a ForwardDiff.Dual-valued result
     x_d = [ForwardDiff.Dual{T}.(xi_v, xi_p) for (xi_v, xi_p) in zip(res.x, x_p)]
 
-    (; x = x_d, res.λ, res._deriv_info)
+    (; x=x_d, res.λ, res._deriv_info)
 end
 
-
-function compute_equilibrium(cost_tensors;
+"""
+    compute_equilibrium(cost_tensors, constraint_tensors, confidence;
     initialization = nothing,
     ϵ = 0.0,
     silent = true,
     convergence_tolerance = 1e-6)
+
+TBW
+"""
+function compute_equilibrium(cost_tensors, constraint_tensors, confidence;
+    initialization=nothing,
+    ϵ=0.0,
+    silent=true,
+    convergence_tolerance=1e-6)
 
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
@@ -252,16 +260,16 @@ function compute_equilibrium(cost_tensors;
     x = [vars[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
     λ = vars[dual_inds]
 
-    (; x, λ, _deriv_info = (; ϵ, wrapper!, nnz = Cint(nnz), tensor_indices, primal_indices))
+    (; x, λ, _deriv_info=(; ϵ, wrapper!, nnz=Cint(nnz), tensor_indices, primal_indices))
 end
 
 function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     cost_tensors;
-    initialization = nothing,
-    ϵ = 0.0,
-    silent = true,
-    convergence_tolerance = 1e-6)
-    res = compute_equilibrium(cost_tensors; initialization, ϵ, silent, convergence_tolerance)
+    initialization=nothing,
+    ϵ=0.0,
+    silent=true,
+    convergence_tolerance=1e-6)
+    res = compute_equilibrium(cost_tensors, constraint_tensors, confidence; initialization, ϵ, silent, convergence_tolerance)
 
     _back = _compute_equilibrium_pullback(res)
 
@@ -275,7 +283,7 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
             derivs = reduce(vcat, full_sensitivities)
 
             map(_back) do ∂cost_tensor
-                dropdims(sum(∂cost_tensor .* derivs; dims = 1); dims = 1)
+                dropdims(sum(∂cost_tensor .* derivs; dims=1); dims=1)
             end
         end
         ∂self, ∂cost_tensors
@@ -284,7 +292,7 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     res, compute_equilibrium_pullback
 end
 
-function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6, singularity_tolerance = 1e-6)
+function _compute_equilibrium_pullback(res; bound_tolerance=1e-6, singularity_tolerance=1e-6)
     primals = vcat(res.x...)
     vars = [primals; res.λ]
     n = Cint(length(vars))
