@@ -1,5 +1,8 @@
+"""
+Each row corresponds to a players strategies, the first column is the index of the first strategy, and the second column is the index of the last strategy.
+"""
 function primal_inds(d)
-    N = length(d)
+    N = length(d) # number of players
     inds = zeros(Cint, N, 2)
     inds[1, 1] = 1
     inds[1, 2] = d[1]
@@ -11,16 +14,25 @@ function primal_inds(d)
 end
 @non_differentiable primal_inds(d)
 
+"""
+?
+"""
 function prob_prod(x, ind, primal_inds, n...)
     N = size(primal_inds, 1)
     length(n) == N && return 1.0
     prod(x[primal_inds[i, 1]+ind[i]-1] for i ∈ 1:N if i ∉ n)
 end
 
+"""
+?
+"""
 function expected_cost(CT, x::Vector{T}, indices, primal_inds)::T where {T}
     val = sum(CT[ind] * prob_prod(x, ind, primal_inds) for ind ∈ indices)
 end
 
+"""
+?
+"""
 function expected_cost(x, cost_tensor)
     N = length(x)
     d = size(cost_tensor)
@@ -89,7 +101,13 @@ struct Wrapper{L} <: Function
     num_primals::Cint
 end
 
+"""
+cF
+"""
 function (T::Wrapper)(n::Cint, x::Vector{Cdouble}, f::Vector{Cdouble})
+    @assert n == length(x) == length(f)
+
+    # what is going on here?
     ind = 0
     for (n, tensor) ∈ enumerate(T.tensors)
         f[ind+1:ind+T.m[n]] .= 0.0
@@ -108,6 +126,9 @@ function (T::Wrapper)(n::Cint, x::Vector{Cdouble}, f::Vector{Cdouble})
     Cint(0)
 end
 
+"""
+cJ
+"""
 function (T::Wrapper)(n::Cint,
     nnz::Cint,
     x::Vector{Cdouble},
@@ -118,6 +139,7 @@ function (T::Wrapper)(n::Cint,
     @assert n == length(x) == length(col) == length(len)
     @assert nnz == length(row) == length(data)
 
+    # what is going on here?
     col[1] = 1
     ind = 2
     for n in 1:T.N
@@ -214,16 +236,17 @@ function compute_equilibrium(cost_tensors, constraint_tensors, confidence;
     silent=true,
     convergence_tolerance=1e-6)
 
-    N = Cint(length(cost_tensors))
-    m = Cint.(size(cost_tensors[1]))
+    N = Cint(length(cost_tensors)) # number of players
+    m = Cint.(size(cost_tensors[1])) # tuple containing the number of strategies corresponding to each player
     @assert all(m == size(tensor) for tensor ∈ cost_tensors)
     primal_indices = primal_inds(m)
-
     num_primals::Cint = sum(m)
+
+	
     dual_inds = Vector{Cint}(num_primals+1:num_primals+N)
 
     tensor_indices = CartesianIndices(cost_tensors[1])
-    nnz = 2 * num_primals
+    nnz = 2 * num_primals # the maximum number of non-zeros in the Jacobian matrix
     for n = 1:N
         nnz += m[n] * (num_primals - m[n])
     end
@@ -243,7 +266,7 @@ function compute_equilibrium(cost_tensors, constraint_tensors, confidence;
         z .= initialization
     end
 
-    n = Cint(sum(m) + N)
+	n = Cint(sum(m) + N)
     x = randn(Cdouble, n)
     f = zeros(Cdouble, n)
 

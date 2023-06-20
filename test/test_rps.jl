@@ -18,16 +18,16 @@ P1  P   1   0  -1
 =#
 A = [0.0 -1 1
     1 0 -1
-    -1 1 0];
-B = -A; # Zero sum game
+    -1 1 0]
+B = -A # Zero sum game
 
-cost_tensors = [A, B];
+cost_tensors = [A, B]
 
 sol = TensorGames.compute_equilibrium(cost_tensors, nothing, nothing;
     initialization=nothing,
     ϵ=0.0,
     silent=true,
-    convergence_tolerance=1e-6);
+    convergence_tolerance=1e-6)
 
 #=
 Expected solution:
