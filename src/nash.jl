@@ -397,14 +397,14 @@ function compute_equilibrium(cost_tensors, constraint_tensors, constraint_owners
         constraint_tensors, constraint_tensor_inds, constraint_ownership, confidence)
 
     lb = [
-        ϵ    * ones(Cdouble, num_primals);  # primal ≥ 0
+        ϵ    * ones(Cdouble, num_primals);
        -1e20 * ones(Cdouble, N);       
-        ϵ    * ones(Cdouble, C)]            
+       -1e20 * ones(Cdouble, C)]            
 
     ub = [
         1e20 * ones(Cdouble, num_primals);  
         1e20 * ones(Cdouble, N);        
-        1e20    * ones(Cdouble, C)]            # mixture dual ≤ 0
+        ϵ    * ones(Cdouble, C)]            
 
     z = zeros(Cdouble, num_primals + N + C)
 
@@ -455,11 +455,11 @@ function compute_equilibrium(cost_tensors, constraint_tensors, constraint_owners
         silent
         )
 
-    x = [vars[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
-    λ = vars[dual_inds_unitude]
-    γ = vars[dual_inds_mixture]
+    # x = [vars[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
+    # λ = vars[dual_inds_unitude]
+    # γ = vars[dual_inds_mixture]
 
-    (; x, λ, γ, _deriv_info=(; ϵ, wrapper!, nnz=Cint(nnz), cost_tensor_inds, primal_indices))
+    # (; x, λ, γ, _deriv_info=(; ϵ, wrapper!, nnz=Cint(nnz), cost_tensor_inds, primal_indices))
 end
 
 # function ChainRulesCore.rrule(::typeof(compute_equilibrium),
