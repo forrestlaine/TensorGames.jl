@@ -20,12 +20,12 @@ A = [0  1 -1
 B = -A # Zero sum game
 
 P = [1 0 0
-     0 0 0
-     0 0 0.0]
+     0 1 0
+     0 0 1.0]
 
-confidence = [0.25]
+confidence = [1]
 
-z0 = [0.5; 0.5; 0.0; 0.5; 0.5; 0.0; 0; 0; 0.0]
+z0 = [0.25; 0.75; 0.0; 1.0; 0.0; 0.0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
 
 cost_tensors = [A, B]
 constraint_tensors = [P]
@@ -35,7 +35,8 @@ sol = TensorGames.compute_equilibrium(cost_tensors, constraint_tensors, constrai
     initialization=z0,
     ϵ=0.0,
     silent=true,
-    convergence_tolerance=1e-9)
+    prob_backwards=true,
+    convergence_tolerance=1e-12)
 
 #=
 Expected solution:
