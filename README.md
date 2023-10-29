@@ -12,7 +12,20 @@ Supply a vector of cost tensors (one for each player) as input to the function `
 
 Additional functionality is provided via ChainRulesCore.jl to automatically differentiate solutions with respect to the elements of the cost tensors. 
 
-## Example: 
+## Examples:
+
+The unique Nash equilibrium for the classic rock-paper-scissors game can be found as follows:
+```julia
+julia> A = Float64[0 1 -1; -1 0 1; 1 -1 0];
+julia> B = -A;
+julia> compute_equilibrium([A, B]).x
+2-element Vector{Vector{Float64}}:
+ [0.3333333333333333, 0.3333333333333333, 0.3333333333333333]
+ [0.3333333333333333, 0.3333333333333333, 0.3333333333333333]
+```
+
+A more complicated random 6 player game looks like this:
+
 ```julia
 
 julia> d = [3,3,3,3,3,3]; N = 6; cost_tensors = [ randn(d...) for i = 1:N];
