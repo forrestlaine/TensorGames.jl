@@ -1,0 +1,30 @@
+# WARNING - these are off by a factor of 5 due to a bug.
+Should be *5 for each one
+
+(2 players, 2 tasks:  0.00907076358795166;
+(2 players, 3 tasks:  0.0027542996406555178;
+(2 players, 4 tasks:  0.006802034378051758;
+(2 players, 5 tasks:  0.011073923110961914;
+(2 players, 6 tasks:  0.01619690179824829;
+(3 players, 2 tasks:  0.005844805240631103;
+(3 players, 3 tasks:  0.004829013347625732;
+(3 players, 4 tasks:  0.01763054132461548;
+(3 players, 5 tasks:  0.03985477924346924;
+(3 players, 6 tasks:  0.274325795173645;
+(4 players, 2 tasks:  0.006536383628845215;
+(4 players, 3 tasks:  0.005772902965545655;
+(4 players, 4 tasks:  0.05976933717727661;
+(4 players, 5 tasks:  0.26418805599212647;
+(4 players, 6 tasks:  0.7401399445533753;
+(5 players, 2 tasks:  0.006038942337036133;
+(5 players, 3 tasks:  0.030648257732391358;
+(5 players, 4 tasks:  0.3455913257598877;
+(5 players, 5 tasks:  1.9412687468528746;
+(5 players, 6 tasks:  7.4234503865242;
+(6 players, 2 tasks:  0.006838867664337158;
+(6 players, 3 tasks:  0.07547890663146972;
+(6 players, 4 tasks:  1.4640369844436645;
+(6 players, 5 tasks: 17.16503929615021
+
+
+# The rest are fine

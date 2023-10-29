@@ -8,6 +8,6 @@ using ForwardDiff: ForwardDiff
 
 include("nash.jl")
 
-export compute_equilibrium, expected_cost
+export compute_equilibrium, tensor_product
 
 end # module
