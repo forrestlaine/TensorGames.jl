@@ -14,7 +14,7 @@ Additional functionality is provided via ChainRulesCore.jl to automatically diff
 
 ## Examples:
 
-The classic rock-paper-scissors game can be solved as follows:
+The unique Nash equilibrium for the classic rock-paper-scissors game can be found as follows:
 ```julia
 julia> A = Float64[0 1 -1; -1 0 1; 1 -1 0];
 julia> B = -A;
