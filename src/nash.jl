@@ -89,6 +89,8 @@ struct Wrapper{L} <: Function
     num_primals::Cint
 end
 
+Wrapper(tensors::AbstractArray, args...) = Wrapper(convert.(Array{Float64}, tensors), args...)
+
 function (T::Wrapper)(n::Cint, x::Vector{Cdouble}, f::Vector{Cdouble})
     ind = 0
     for (n, tensor) ∈ enumerate(T.tensors)

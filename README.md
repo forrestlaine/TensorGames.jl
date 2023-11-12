@@ -16,7 +16,7 @@ Additional functionality is provided via ChainRulesCore.jl to automatically diff
 
 The unique Nash equilibrium for the classic rock-paper-scissors game can be found as follows:
 ```julia
-julia> A = Float64[0 1 -1; -1 0 1; 1 -1 0];
+julia> A = [0 1 -1; -1 0 1; 1 -1 0];
 julia> B = -A;
 julia> compute_equilibrium([A, B]).x
 2-element Vector{Vector{Float64}}:

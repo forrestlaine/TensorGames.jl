@@ -9,7 +9,7 @@ end
 
 @testset "abstract array input" begin
     # Prisoner's dilemma using transpose
-    A = [2 0; 3 1]
+    A = [1 3; 0 2]
     B = A'
-    @test compute_equilibrium([A, B]).x == [[0, 1], [0, 1]]
+    @test compute_equilibrium([A, B]).x ≈ [[0, 1], [0, 1]]
 end
