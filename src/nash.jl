@@ -17,7 +17,7 @@ function prob_prod(x, ind, primal_inds, n...)
     prod(x[primal_inds[i, 1]+ind[i]-1] for i ∈ 1:N if i ∉ n)
 end
 
-function expected_cost(CT, x::Vector{T}, indices, primal_inds)::T where {T}
+function expected_cost(CT, x, indices, primal_inds)
     val = sum(CT[ind] * prob_prod(x, ind, primal_inds) for ind ∈ indices)
 end
 
