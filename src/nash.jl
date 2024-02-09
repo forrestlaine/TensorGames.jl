@@ -251,6 +251,10 @@ function compute_equilibrium(cost_tensors;
         convergence_tolerance,
         silent)
 
+    if status === PATHSolver.MCP_UserInterrupt
+        throw(InterruptException())
+    end
+
     x = [vars[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
     λ = vars[dual_inds]
 
