@@ -198,15 +198,15 @@ function compute_equilibrium(cost_tensors::AbstractVector{<:AbstractArray{<:Forw
     # 3. glue primal and dual results together into a ForwardDiff.Dual-valued result
     x_d = [ForwardDiff.Dual{T}.(xi_v, xi_p) for (xi_v, xi_p) in zip(res.x, x_p)]
 
-    (; x = x_d, res.λ, res._deriv_info)
+    (; x=x_d, res.λ, res._deriv_info)
 end
 
 
 function compute_equilibrium(cost_tensors;
-    initialization = nothing,
-    ϵ = 0.0,
-    silent = true,
-    convergence_tolerance = 1e-6)
+    initialization=nothing,
+    ϵ=0.0,
+    silent=true,
+    convergence_tolerance=1e-6)
 
     N = Cint(length(cost_tensors))
     m = Cint.(size(cost_tensors[1]))
@@ -258,15 +258,15 @@ function compute_equilibrium(cost_tensors;
     x = [vars[primal_indices[n, 1]:primal_indices[n, 2]] for n ∈ 1:N]
     λ = vars[dual_inds]
 
-    (; x, λ, _deriv_info = (; ϵ, wrapper!, nnz = Cint(nnz), tensor_indices, primal_indices))
+    (; x, λ, _deriv_info=(; ϵ=[ϵ], wrapper!, nnz=Cint(nnz), tensor_indices, primal_indices))
 end
 
 function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     cost_tensors;
-    initialization = nothing,
-    ϵ = 0.0,
-    silent = true,
-    convergence_tolerance = 1e-6)
+    initialization=nothing,
+    ϵ=0.0,
+    silent=true,
+    convergence_tolerance=1e-6)
     res = compute_equilibrium(cost_tensors; initialization, ϵ, silent, convergence_tolerance)
 
     _back = _compute_equilibrium_pullback(res)
@@ -281,7 +281,7 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
             derivs = reduce(vcat, full_sensitivities)
 
             map(_back) do ∂cost_tensor
-                dropdims(sum(∂cost_tensor .* derivs; dims = 1); dims = 1)
+                dropdims(sum(∂cost_tensor .* derivs; dims=1); dims=1)
             end
         end
         ∂self, ∂cost_tensors
@@ -290,7 +290,93 @@ function ChainRulesCore.rrule(::typeof(compute_equilibrium),
     res, compute_equilibrium_pullback
 end
 
-function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6, singularity_tolerance = 1e-6)
+function EnzymeRules.augmented_primal(
+    config,
+    func::EnzymeCore.Annotation{typeof(compute_equilibrium)},
+    ::Type{ReturnType},
+    cost_tensors; kwargs...,
+) where {ReturnType}
+    println("hit my augmented primal with $ReturnType")
+    if ReturnType <: Union{EnzymeCore.BatchDuplicated,EnzymeCore.BatchDuplicatedNoNeed}
+        throw(ArgumentError("""
+                            Return type `$(ReturnType)` currently not supported.
+                            Please file an issue with ParametricMCPs.jl.
+                            """))
+    end
+
+    needs_jacobian = !(ReturnType <: EnzymeCore.Const) && !(cost_tensors isa EnzymeCore.Const)
+
+    # compute primal result if needed for forward or reverse pass
+    if needs_jacobian || EnzymeRules.needs_primal(config)
+        res = func.val(cost_tensors.val; kwargs...)
+    else
+        res = nothing
+    end
+
+    # forward primal result if needed
+    if EnzymeRules.needs_primal(config)
+        primal = res
+    else
+        primal = nothing
+    end
+
+    # compute Jacobian if needed
+    if needs_jacobian
+        ∂z∂θ = _compute_equilibrium_pullback(res)
+    else
+        ∂z∂θ = nothing
+    end
+
+    # set up shadow if needed
+    if EnzymeRules.needs_shadow(config)
+        shadow = deepcopy(res)
+        for xi in shadow.x
+            xi .= 0.0
+        end
+        shadow.λ .= 0.0
+    else
+        shadow = nothing
+    end
+
+    tape = (; ∂z∂θ, shadow)
+
+    EnzymeRules.AugmentedReturn{typeof(primal),typeof(shadow),Any}(primal, shadow, tape)
+end
+
+function EnzymeRules.reverse(
+    config,
+    func::EnzymeCore.Const{typeof(compute_equilibrium)},
+    ::Type{ReturnType},
+    tape,
+    cost_tensors;
+    kwargs...,
+) where {ReturnType}
+    println("hit my reverse with $ReturnType")
+
+    #∂cost_tensors = let
+    #    full_sensitivities = map(∂res.x, res.x) do r, x
+    #        r isa ZeroTangent ? zeros(x) : r
+    #    end
+    #    derivs = reduce(vcat, full_sensitivities)
+
+    #    map(_back) do ∂cost_tensor
+    #        dropdims(sum(∂cost_tensor .* derivs; dims = 1); dims = 1)
+    #    end
+    #end
+
+    if cost_tensors isa EnzymeCore.Duplicated && !(ReturnType <: EnzymeCore.Const)
+        for (cost_tensor_ii_dval, ∂z∂θ_ii) in zip(cost_tensors.dval, tape.∂z∂θ)
+            cost_tensor_ii_dval .+= ∂z∂θ_ii' * tape.dres.z
+        end
+    else
+        # all other cases should have been caught the checks in `augmented_primal`.
+        @assert cost_tensors isa EnzymeCore.Const
+    end
+
+    (nothing, nothing)
+end
+
+function _compute_equilibrium_pullback(res; bound_tolerance=1e-6, singularity_tolerance=1e-6)
     primals = vcat(res.x...)
     vars = [primals; res.λ]
     n = Cint(length(vars))
@@ -299,7 +385,7 @@ function _compute_equilibrium_pullback(res; bound_tolerance = 1e-6, singularity_
     starts = cumsum([0; d[1:end-1]])
     num_primals = sum(d)
 
-    lb = [res._deriv_info.ϵ * ones(num_primals); -Inf * ones(N)]
+    lb = [only(res._deriv_info.ϵ) * ones(num_primals); -Inf * ones(N)]
     unbound_indices = (vars .> (lb .+ bound_tolerance))
     unbound_primals = unbound_indices[1:end-N]
     nup = sum(unbound_primals)

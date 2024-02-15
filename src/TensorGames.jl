@@ -5,6 +5,7 @@ using SparseArrays
 using ChainRulesCore: ChainRulesCore, NoTangent, ZeroTangent, @non_differentiable
 using LinearAlgebra: qr, diag, I
 using ForwardDiff: ForwardDiff
+using EnzymeCore: EnzymeCore, EnzymeRules
 
 include("nash.jl")
 
